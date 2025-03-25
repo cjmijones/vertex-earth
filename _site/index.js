@@ -131,7 +131,7 @@ function handleRaycast() {
 
 function animate() {
   renderer.render(scene, camera);
-  globeGroup.rotation.y += rotationSpeed;
+  globeGroup.rotation.y += 0.001;
   handleRaycast();
   requestAnimationFrame(animate);
   orbitCtrl.update();

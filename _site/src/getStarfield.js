@@ -1,6 +1,4 @@
-// import * as THREE from "three";
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js";
-
+import * as THREE from "three";
 
 export default function getStarfield({ numStars = 500, sprite } = {}) {
   function randomSpherePoint() {
