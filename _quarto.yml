@@ -1,0 +1,25 @@
+project:
+  type: website
+  output-dir: _site
+
+resources:
+  - src/**
+  - index.js
+
+website:
+  title: "Interactive Globe Story"
+  navbar:
+    left:
+      - text: Globe
+        href: index.qmd
+
+format:
+  html:
+    theme: darkly
+    page-layout: full
+    lightbox: true
+    theme-toggle: false
+    fontfamily: "Oswald, serif"
+    toc: true
+    embed-resources: true
+
