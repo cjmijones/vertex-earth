@@ -5,6 +5,7 @@ project:
 resources:
   - src/**
   - index.js
+  - datasets/**
 
 website:
   title: "Interactive Globe Story"
