@@ -53,6 +53,24 @@ function latLonToUV(lat, lon) {
   return [u, v];
 }
 
+
+function resetViewToLatLon(lat, lon, cameraDistance = 3.5) {
+  // Set globe rotation so that lat/lon is centered
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = -lon * (Math.PI / 180);
+
+  // This rotates the globe so the lat/lon faces forward
+  globeGroup.rotation.set(0, theta, 0);
+
+  // Set camera position back and slightly up
+  const viewPos = latLonToXYZ(lat, lon, cameraDistance);
+  camera.position.copy(viewPos);
+
+  // Always look at the globe center
+  orbitCtrl.target.set(0, 0, 0);
+  orbitCtrl.update();
+}
+
 /* ------------------------
    UI Container Setup
 ------------------------ */
@@ -141,6 +159,27 @@ btnControls.onclick = () => {
 // Set initial state
 setActive(btnInfo);
 
+// --- 2ab) Story Navigation Buttons ---
+const storyPanel = document.createElement("div");
+Object.assign(storyPanel.style, {
+  display: "flex",
+  gap: "8px",
+  paddingTop: "6px",
+});
+
+const btnPrev = document.createElement("button");
+btnPrev.textContent = "⬅️ Previous";
+Object.assign(btnPrev.style, buttonBaseStyle);
+
+const btnNext = document.createElement("button");
+btnNext.textContent = "Next ➡️";
+Object.assign(btnNext.style, buttonBaseStyle);
+
+storyPanel.appendChild(btnPrev);
+storyPanel.appendChild(btnNext);
+uiContainer.appendChild(storyPanel);
+
+
 /* --------------------------------------------------------
    2b) Create Introductory Panel (Above Filters)
    - Removed inline width, rely on CSS below
@@ -160,28 +199,7 @@ Object.assign(introPanel.style, {
   marginRight: "0px"
 });
 introPanel.innerHTML = `
-  <h3 style="margin-top:0; font-size:18px;">🌐 Humanitarians Under Fire</h3>
-  <p>
-    Welcome to an interactive exploration of global attacks on humanitarian organizations.
-    This 3D globe visualizes thousands of security incidents from 1997 to 2024.
-  </p>
-  <p>
-    <strong>Use the toggle filters button above</strong> to adjust:
-    <ul style="padding-left:20px; margin: 0;">
-      <li>Which organizations are shown</li>
-      <li>The range of years to display</li>
-      <li>The radius for hovering/interacting</li>
-    </ul>
-  </p>
-  <p>
-    Hover over a region to see aggregated stats — including the number of incidents, types of attacks, people affected, and gender breakdowns.
-  </p>
-  <p>
-    You can explore freely or follow the guided story using the <strong>Next</strong> and <strong>Previous</strong> buttons (coming soon).
-  </p>
-  <p>
-    Start exploring by adjusting the filters, or rotating the globe and hovering over hotspots.
-  </p>
+
 `;
 uiContainer.appendChild(introPanel);
 
@@ -241,24 +259,225 @@ document.querySelectorAll('input[name="rotation"]').forEach(el => {
   });
 });
 
+function reapplyRangeFilter() {
+  const min = parseInt(document.getElementById("min-year").value);
+  const max = parseInt(document.getElementById("max-year").value);
+  filterIncidentPointsInRange(min, max);
+}
+
 document.getElementById("select-all").onclick = () => {
   document.querySelectorAll(".org-filter").forEach(cb => cb.checked = true);
-  filterIncidentPoints();
+  reapplyRangeFilter();
 };
 
 document.getElementById("deselect-all").onclick = () => {
   document.querySelectorAll(".org-filter").forEach(cb => cb.checked = false);
-  filterIncidentPoints();
+  reapplyRangeFilter();
 };
 
 document.querySelectorAll(".org-filter").forEach(cb => {
-  cb.addEventListener("change", filterIncidentPoints);
+  cb.addEventListener("change", reapplyRangeFilter);
 });
+
 
 radiusSlider.addEventListener("input", (e) => {
   interactionRadius = parseFloat(e.target.value);
   radiusValueLabel.textContent = interactionRadius.toFixed(3);
 });
+
+// --- 2d1) Timeline Buttons Go Below Info Panel ---
+
+const timelineContainer = document.createElement("div");
+Object.assign(timelineContainer.style, {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  paddingTop: "6px",
+});
+
+const playBtn = document.createElement("button");
+playBtn.textContent = "▶️ Play";
+Object.assign(playBtn.style, buttonBaseStyle);
+
+const pauseBtn = document.createElement("button");
+pauseBtn.textContent = "⏸️ Pause";
+Object.assign(pauseBtn.style, buttonBaseStyle);
+
+const scrubSlider = document.createElement("input");
+Object.assign(scrubSlider, {
+  type: "range",
+  min: 1997,
+  max: 2024,
+  value: 1997,
+});
+Object.assign(scrubSlider.style, {
+  flexGrow: "1",
+  height: "24px",
+});
+
+timelineContainer.appendChild(playBtn);
+timelineContainer.appendChild(pauseBtn);
+timelineContainer.appendChild(scrubSlider);
+uiContainer.appendChild(timelineContainer);
+
+
+
+// --- 2e) Story Logic ---
+let currentChapter = 0;
+let isPlaying = false;
+let currentYear = 1997;
+let animationInterval = null;
+let useDualColors = false;
+
+const chapters = [
+  {
+    title: "🌐 Humanitarians Under Fire",
+    content: `
+      <p>
+        Welcome to an interactive exploration of global attacks on humanitarian organizations.
+        This 3D globe visualizes thousands of security incidents from 1997 to 2024.
+      </p>
+      <p>
+        <strong>Use the toggle filters button above</strong> to adjust:
+        <ul style="padding-left:20px; margin: 0;">
+          <li>Which organizations are shown</li>
+          <li>The range of years to display</li>
+          <li>The radius for hovering/interacting</li>
+        </ul>
+      </p>
+      <p>
+        Hover over a region to see aggregated stats — including the number of incidents, types of attacks, people affected, and gender breakdowns.
+      </p>
+      <p>
+        You can explore freely or follow the guided story using the <strong>Next</strong> and <strong>Previous</strong> buttons.
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">🌐 Humanitarians Under Fire</h3>
+        ${chapters[0].content}
+      `;
+    }
+  },
+  {
+    title: "📈 Chapter 1: Rising Attacks Over Time",
+    content: `
+      <p>
+        Over the past two decades, humanitarian workers have increasingly become targets of violence.
+        This chapter shows the steady rise in incidents globally from 1997 to 2024.
+      </p>
+      <p>
+        Use the filters to explore trends by year, organization, or region.
+        Hover over the globe to see how these incidents aggregate geographically.
+      </p>
+    `,
+    action: () => {
+      useDualColors = true;
+  
+      // Stop rotation & set radio button
+      rotationSpeed = 0;
+      document.querySelector('input[name="rotation"][value="0.0"]').checked = true;
+  
+      // Reset view to Middle East
+      resetViewToLatLon(15, 20); // lat/lon of Middle East
+  
+      // UI
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">📈 Chapter 1: Rising Attacks Over Time</h3>
+        ${chapters[1].content}
+      `;
+  
+      // Start paused at year 1997
+      stopPlayback();
+      currentYear = 1997;
+      scrubSlider.value = currentYear;
+      filterIncidentPoints(currentYear); // Only up to 1997 initially
+    }
+  },
+  // You can add more chapters here
+];
+
+function startPlayback() {
+  clearInterval(animationInterval);
+  animationInterval = setInterval(() => {
+    if (!isPlaying) return;
+
+    currentYear++;
+    if (currentYear > 2024) {
+      currentYear = 2024;
+      stopPlayback();
+    }
+    scrubSlider.value = currentYear;
+    filterIncidentPoints(currentYear);
+  }, 600); // 600ms per year
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  clearInterval(animationInterval);
+}
+
+function showChapter(n) {
+  if (n >= 0 && n < chapters.length) {
+    currentChapter = n;
+    chapters[n].action();
+
+    if (n === 0) {
+      useDualColors = false;
+    
+      // Reset year dropdowns
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      const minYear = parseInt(yearMin.options[0].value);
+      const maxYear = parseInt(yearMax.options[yearMax.options.length - 1].value);
+    
+      yearMin.value = minYear;
+      yearMax.value = maxYear;
+    
+      // Apply full filter with red points
+      filterIncidentPointsInRange(minYear, maxYear);
+    }
+
+    // Disable/enable buttons based on chapter position
+    btnPrev.disabled = (currentChapter === 0);
+    btnNext.disabled = (currentChapter === chapters.length - 1);
+
+    // Optional: visually dim disabled buttons
+    [btnPrev, btnNext].forEach(btn => {
+      btn.style.opacity = btn.disabled ? "0.5" : "1";
+      btn.style.cursor = btn.disabled ? "default" : "pointer";
+    });
+
+    timelineContainer.style.display = (currentChapter === 1) ? "flex" : "none";
+  }
+}
+
+btnNext.onclick = () => showChapter(currentChapter + 1);
+btnPrev.onclick = () => showChapter(currentChapter - 1);
+
+playBtn.onclick = () => {
+  if (!isPlaying) {
+    isPlaying = true;
+    startPlayback();
+  }
+};
+
+pauseBtn.onclick = () => {
+  stopPlayback();
+};
+
+scrubSlider.oninput = () => {
+  currentYear = parseInt(scrubSlider.value);
+  filterIncidentPoints(currentYear);
+};
+
 
 /* --------------------------------------------------------
    3) Basic Scene Setup
@@ -390,6 +609,7 @@ const fragmentShader = `
 
 const uniforms = {
   size: { value: 4.0 },
+  pulseScale: { value: 1.0 }, // 🔥 NEW
   colorTexture: { value: colorMap },
   otherTexture: { value: otherMap },
   elevTexture: { value: elevMap },
@@ -473,8 +693,16 @@ fetch("./datasets/filtered_security_df.csv")
     yearSelectMin.value = uniqueYears[0];
     yearSelectMax.value = uniqueYears[uniqueYears.length - 1];
 
-    yearSelectMin.addEventListener("change", filterIncidentPoints);
-    yearSelectMax.addEventListener("change", filterIncidentPoints);
+    yearSelectMin.addEventListener("change", () => {
+      const min = parseInt(yearSelectMin.value);
+      const max = parseInt(yearSelectMax.value);
+      filterIncidentPointsInRange(min, max);
+    });
+    yearSelectMax.addEventListener("change", () => {
+      const min = parseInt(yearSelectMin.value);
+      const max = parseInt(yearSelectMax.value);
+      filterIncidentPointsInRange(min, max);
+    });
 
     incidentMeta = alignedRows;
     incidentUVs = uvData;
@@ -494,79 +722,153 @@ fetch("./datasets/filtered_security_df.csv")
     originalIncidentUVs = uvData;
 
     const incidentVertex = `
+      attribute vec3 color;
+      varying vec3 vColor;
       varying float vVisible;
+
+      uniform float pulseScale;
+
       void main() {
         vec4 worldPos4 = modelMatrix * vec4(position, 1.0);
         vec3 worldPos = worldPos4.xyz;
         vec3 normal = normalize(worldPos);
         vec3 cameraDir = normalize(cameraPosition - worldPos);
         vVisible = step(0.0, dot(cameraDir, normal));
+
+        vColor = color;
+
         gl_Position = projectionMatrix * viewMatrix * worldPos4;
-        gl_PointSize = 6.0;
+        gl_PointSize = 6.0 * pulseScale;
       }
     `;
 
     const incidentFragment = `
+      varying vec3 vColor;
       varying float vVisible;
+
       void main() {
         if (vVisible < 0.5) discard;
-        gl_FragColor = vec4(1.0, 0.1, 0.1, 1.0);
+        gl_FragColor = vec4(vColor, 1.0);
       }
     `;
 
     const incidentMat = new THREE.ShaderMaterial({
       vertexShader: incidentVertex,
       fragmentShader: incidentFragment,
+      uniforms: {
+        pulseScale: { value: 1.0 }  // this will be shared and updated in animate()
+      },
       transparent: true,
       depthWrite: true,
       depthTest: true,
     });
+    
 
     incidentPoints = new THREE.Points(iGeo, incidentMat);
     incidentPoints.renderOrder = 1;
     globeGroup.add(incidentPoints);
+
+    // Load first chapter on startup
+    showChapter(0);
+    const min = parseInt(document.getElementById("min-year").value);
+    const max = parseInt(document.getElementById("max-year").value);
+    filterIncidentPointsInRange(min, max);
+
   });
 
-function filterIncidentPoints() {
-  if (!incidentPoints || !originalIncidentGeo || !originalIncidentMeta || !originalIncidentUVs) return;
+/* --------------------------------------------------------
+   Interlude) Fetch Helper Functions
+-------------------------------------------------------- */
 
-  const selectedOrgs = Array.from(document.querySelectorAll(".org-filter:checked")).map(cb => cb.value);
-  const minYear = parseInt(document.getElementById("min-year").value);
-  const maxYear = parseInt(document.getElementById("max-year").value);
+  function pulsePoints() {
+    if (!incidentPoints || !incidentPoints.material || !incidentPoints.material.uniforms) return;
+  
+    let pulseT = 0;
+    const pulseDuration = 500; // 1 second pulse
+  
+    const start = performance.now();
+  
+    function animatePulse(now) {
+      const elapsed = now - start;
+      const t = elapsed / pulseDuration;
+  
+      // Sinusoidal pulse, peak in middle
+      const scale = 1.0 + 0.5 * Math.sin(Math.PI * t);
+      incidentPoints.material.uniforms.pulseScale.value = scale;
+  
+      if (elapsed < pulseDuration) {
+        requestAnimationFrame(animatePulse);
+      } else {
+        incidentPoints.material.uniforms.pulseScale.value = 1.0;
+      }
+    }
+  
+    requestAnimationFrame(animatePulse);
+  }
 
-  const newPositions = [];
-  const newUVs = [];
-  const newMeta = [];
-
-  originalIncidentMeta.forEach((row, i) => {
-    const year = parseInt(row.Year);
-    if (isNaN(year) || year < minYear || year > maxYear) return;
-
-    const orgMatch = selectedOrgs.some(org => parseFloat(row[org]) > 0);
-    if (!orgMatch) return;
-
-    const posIdx = i * 3;
-    const uvIdx = i * 2;
-    newPositions.push(
-      originalIncidentGeo.getAttribute("position").array[posIdx],
-      originalIncidentGeo.getAttribute("position").array[posIdx + 1],
-      originalIncidentGeo.getAttribute("position").array[posIdx + 2]
-    );
-    newUVs.push(
-      originalIncidentUVs[uvIdx],
-      originalIncidentUVs[uvIdx + 1]
-    );
-    newMeta.push(row);
-  });
-
-  const iGeo = new THREE.BufferGeometry();
-  iGeo.setAttribute("position", new THREE.Float32BufferAttribute(newPositions, 3));
-  iGeo.setAttribute("incidentUv", new THREE.Float32BufferAttribute(newUVs, 2));
-  incidentPoints.geometry.dispose();
-  incidentPoints.geometry = iGeo;
-  incidentMeta = newMeta;
-  incidentUVs = newUVs;
-}
+  function initialFilterIncidentPoints() {
+    const min = parseInt(document.getElementById("min-year").value);
+    const max = parseInt(document.getElementById("max-year").value);
+    filterIncidentPointsInRange(min, max);
+  }
+  
+  function filterIncidentPointsInRange(minYear, maxYear) {
+    const selectedOrgs = Array.from(document.querySelectorAll(".org-filter:checked")).map(cb => cb.value);
+    const newPositions = [];
+    const newUVs = [];
+    const newMeta = [];
+    const newColors = [];
+  
+    originalIncidentMeta.forEach((row, i) => {
+      const rowYear = parseInt(row.Year);
+      if (isNaN(rowYear) || rowYear < minYear || rowYear > maxYear) return;
+  
+      const orgMatch = selectedOrgs.some(org => parseFloat(row[org]) > 0);
+      if (!orgMatch) return;
+  
+      const posIdx = i * 3;
+      const uvIdx = i * 2;
+  
+      newPositions.push(
+        originalIncidentGeo.getAttribute("position").array[posIdx],
+        originalIncidentGeo.getAttribute("position").array[posIdx + 1],
+        originalIncidentGeo.getAttribute("position").array[posIdx + 2]
+      );
+  
+      newUVs.push(
+        originalIncidentUVs[uvIdx],
+        originalIncidentUVs[uvIdx + 1]
+      );
+  
+      if (useDualColors) {
+        const isPost2010 = rowYear >= 2010;
+        newColors.push(...(isPost2010 ? [1.0, 1.0, 0.2] : [1.0, 0.2, 0.2]));
+      } else {
+        newColors.push(1.0, 0.2, 0.2); // just red
+      }
+  
+      newMeta.push(row);
+    });
+  
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(newPositions, 3));
+    geo.setAttribute("incidentUv", new THREE.Float32BufferAttribute(newUVs, 2));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(newColors, 3));
+  
+    incidentPoints.geometry.dispose();
+    incidentPoints.geometry = geo;
+    incidentMeta = newMeta;
+    incidentUVs = newUVs;
+  
+    // pulsePoints();
+  }
+  
+  // This is used by the timeline animation (single year)
+  function filterIncidentPoints(year) {
+    filterIncidentPointsInRange(1997, year);  // or whatever your minimum year is
+  }
+  
+  
 
 /* --------------------------------------------------------
    9) Info Box for On-Hover Data (Aggregated Tooltip)
@@ -846,14 +1148,21 @@ function handleRaycast() {
   showAggregatedTooltip(foundIndices);
 }
 
+let pulseTime = 0;
+
 function animate() {
   requestAnimationFrame(animate);
   globeGroup.rotation.y += rotationSpeed;
+
+  pulseTime += 0.05;
+  uniforms.pulseScale.value = 1.0 + 0.25 * Math.sin(pulseTime);
+
   handleRaycast();
   uniforms.interactionRadius.value = interactionRadius;
   renderer.render(scene, camera);
   orbitCtrl.update();
 }
+
 animate();
 
 const controls = document.getElementsByName("rotation");
