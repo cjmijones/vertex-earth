@@ -670,6 +670,8 @@ const chapters = [
       // Ensure all orgs are shown
       document.getElementById("select-all").click();
   
+      rotationSpeed = 0.0;
+
       if (heatmapPoints) heatmapPoints.visible = false;
       if (incidentPoints) incidentPoints.visible = true;
   
