@@ -6,6 +6,7 @@ resources:
   - src/**
   - index.js
   - datasets/**
+  - static-charts/**
 
 website:
   title: "Interactive Globe Story"

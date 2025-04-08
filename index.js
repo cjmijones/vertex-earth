@@ -354,6 +354,8 @@ const chapters = [
     `,
     action: () => {
       useDualColors = false;
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
       introPanel.style.display = "block";
       controlBox.style.display = "none";
       setActive(btnInfo);
@@ -361,6 +363,7 @@ const chapters = [
         <h3 style="margin-top:0; font-size:18px;">🌐 Humanitarians Under Fire</h3>
         ${chapters[0].content}
       `;
+
     }
   },
   {
@@ -369,8 +372,10 @@ const chapters = [
       <p>
         Over the past two decades, humanitarian workers have increasingly become targets of violence.
         This chapter shows the steady rise in incidents globally from 1997 to 2024.
+        Yellow dots represent incidents in the past 14 years — clearly outnumbering earlier events in the previous 13 years.
       </p>
       <p>
+        This stark growth highlights a troubling surge in humanitarian targeting.
         Use the filters to explore trends by year, organization, or region.
         Hover over the globe to see how these incidents aggregate geographically.
       </p>
@@ -381,7 +386,10 @@ const chapters = [
       // Stop rotation & set radio button
       rotationSpeed = 0;
       document.querySelector('input[name="rotation"][value="0.0"]').checked = true;
-  
+
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
+
       // Reset view to Middle East
       resetViewToLatLon(15, 20); // lat/lon of Middle East
   
@@ -393,6 +401,9 @@ const chapters = [
         <h3 style="margin-top:0; font-size:18px;">📈 Chapter 1: Rising Attacks Over Time</h3>
         ${chapters[1].content}
       `;
+
+      const actor_legend = document.getElementById("actor-legend");
+      if (actor_legend) actor_legend.remove();
   
       // Start paused at year 1997
       stopPlayback();
@@ -402,6 +413,320 @@ const chapters = [
     }
   },
   // You can add more chapters here
+  {
+    title: "🧠 Chapter 2: Who Are the Perpetrators?",
+    content: `
+      <p>
+        Let's dive into <strong>who</strong> is behind these attacks.
+        Use the tooltip panel to explore <strong>Actor Types</strong> responsible for incidents.
+        Some interesting highlights are Ukraine and the Levant showing signs of high state or inter-state conflict, while Africa and Afghanistan
+        highlight non-state armed groups — revealing distinct conflict dynamics.
+      </p>
+      <p>
+        Hover over hotspots and toggle the info panel buttons to focus on <em>Actors</em>.
+      </p>
+      <p>
+        Try zooming into different regions and adjusting filters to see how the responsible parties vary.
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+  
+      // Reset filters to full range & re-filter
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      yearMin.value = yearMin.options[0].value;
+      yearMax.value = yearMax.options[yearMax.options.length - 1].value;
+      
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
+      
+      reapplyRangeFilter();
+  
+      // Focus on a region with diverse actor types — e.g. Sub-Saharan Africa
+      resetViewToLatLon(15, 20); // lat 5, lon 20
+  
+      // Enable rotation slowly
+      rotationSpeed = 0.0;
+  
+      // UI
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">🧠 Chapter 2: Who Are the Perpetrators?</h3>
+        ${chapters[2].content}
+      `;
+  
+      if (currentChapter === 2) {
+        renderActorLegend();
+      }
+
+      // Deselect other sections
+      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+
+      // Enable only actorTargetMap
+      infoSections.actorTargetMap = true;
+
+      // Re-render buttons
+      createInfoToggleButtons();
+
+      const org_legend = document.getElementById("org-legend");
+      if (org_legend) org_legend.remove();
+
+      // Refresh tooltip (uses previous hover indices)
+      showAggregatedTooltip(currentHoverIndices);
+
+      // Disable timeline playback
+      stopPlayback();
+      timelineContainer.style.display = "none";
+    }
+  },
+  {
+    title: "🏥 Chapter 3: The Rise (and Risk) of Local Organizations",
+    content: `
+      <p>
+        Over the past decade, <strong>local humanitarian organizations</strong> have increasingly found themselves on the frontlines — and under threat.
+      </p>
+      <p>
+        This chapter shows incidents from <strong>2014–2024</strong> and uses <strong>distinct colors</strong> to highlight different types of humanitarian organizations.
+      </p>
+      <p>
+        Use the timeline below to explore year-over-year trends in attacks on local vs. international organizations.
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+  
+      // Set year range to 2014–2024
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      yearMin.value = "2014";
+      yearMax.value = "2024";
+
+      scrubSlider.min = 2014;
+      scrubSlider.max = 2024;
+      scrubSlider.value = 2014;
+      
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
+
+      reapplyRangeFilter();
+  
+      // Reset camera to Africa
+      resetViewToLatLon(10, 25);
+  
+      // UI updates
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">🏥 Chapter 3: The Rise (and Risk) of Local Organizations</h3>
+        ${chapters[3].content}
+      `;
+  
+      // Tooltip config
+      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+      infoSections.organization = true;
+      createInfoToggleButtons();
+  
+      // Timeline & hover setup
+      currentYear = 2014;
+      scrubSlider.value = currentYear;
+      filterIncidentPoints(currentYear);
+      timelineContainer.style.display = "flex";
+
+      const actor_legend = document.getElementById("actor-legend");
+      if (actor_legend) actor_legend.remove();
+  
+      showOrgLegend();
+      showAggregatedTooltip(currentHoverIndices);
+    }
+  },
+  {
+    title: "🔥 Chapter 4: High Impact Zones",
+    content: `
+      <p>
+        Some attacks impact dozens of humanitarian staff and civilians.
+        This chapter highlights incidents with the <strong>highest human toll</strong>, based on the number of individuals killed, wounded, kidnapped, or otherwise affected.
+        Intriguingly despite many incidents in Africa, the Levant, and Afghanistan, they often involve <em>lower</em> impact per event.
+        Conversely, high-impact incidents cluster in the Americas, Myanmar/Bangladesh, and the Philippines.
+      </p>
+      <p>
+        The most severe events appear as glowing yellow-white bursts on the globe.
+        You can scrub through time or hover for details.
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+  
+      // Set year range to full
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      yearMin.value = yearMin.options[0].value;
+      yearMax.value = yearMax.options[yearMax.options.length - 1].value;
+      
+      // Select all organization checkboxes
+      document.querySelectorAll(".org-filter").forEach(cb => cb.checked = true);
+      
+      // Force full-data refresh for heatmap
+      filterIncidentPointsInRange(1997, 2024);
+
+      if (incidentPoints) incidentPoints.visible = false;
+      if (heatmapPoints) heatmapPoints.visible = true;
+      reapplyRangeFilter();
+  
+      // Camera view reset
+      resetViewToLatLon(15, 20); // centered on Africa
+  
+      // UI
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">🔥 Chapter 4: High Impact Zones</h3>
+        ${chapters[4].content}
+      `;
+  
+      // Tooltip and buttons
+      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+      createInfoToggleButtons();
+  
+      // Clear legends
+      const actorLegend = document.getElementById("actor-legend");
+      const orgLegend = document.getElementById("org-legend");
+      if (actorLegend) actorLegend.remove();
+      if (orgLegend) orgLegend.remove();
+      const genderLegend = document.getElementById("gender-legend");
+      if (genderLegend) genderLegend.remove();
+  
+      // Reset timeline
+      stopPlayback();
+      currentYear = 1997;
+      scrubSlider.value = currentYear;
+      timelineContainer.style.display = "flex";
+      filterIncidentPoints(currentYear);
+
+      document.getElementById("select-all").click();
+
+      // Then explicitly call heatmap filtering with full range
+      filterIncidentPointsInRange(1997, 2024);
+      document.getElementById("select-all").click();
+    }
+  },
+  {
+    title: "👥 Chapter 5: Gender-Based Violence",
+    content: `
+      <p>
+        Who bears the brunt of humanitarian violence? This chapter highlights incidents where
+        <strong>the majority of victims were male or female</strong>, helping uncover possible patterns of gender-based targeting.
+        In regions like Afghanistan, gender-unknown incidents have risen — often involving kidnappings.
+        While circumstantial, this trend is worth concern.
+      </p>
+      <p>
+        Points are colored by gender: <span style="color:#66aaff">Blue for Male-majority</span>, 
+        <span style="color:#ff6699">Pink for Female-majority</span>, and 
+        <span style="color:#ccc">Gray for Unknown</span>.
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+  
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      yearMin.value = yearMin.options[0].value;
+      yearMax.value = yearMax.options[yearMax.options.length - 1].value;
+  
+      // Ensure all orgs are shown
+      document.getElementById("select-all").click();
+  
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
+  
+      reapplyRangeFilter();
+  
+      resetViewToLatLon(10, 20); // centered on Africa-ish
+  
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">👥 Chapter 5: Gender-Based Violence</h3>
+        ${chapters[5].content}
+      `;
+  
+      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+      infoSections.gender = true;
+      createInfoToggleButtons();
+  
+      stopPlayback();
+      timelineContainer.style.display = "none";
+
+      showGenderLegend();
+  
+      const orgLegend = document.getElementById("org-legend");
+      if (orgLegend) orgLegend.remove();
+    }
+  },
+  {
+    title: "📘 Conclusion: Continue Exploring",
+    content: `
+      <p>
+        Thank you for exploring this interactive visualization of humanitarian incidents from 1997 to 2024.
+      </p>
+      <p>
+        Each dot on the globe represents lives impacted — and stories that matter.
+        We hope this tool deepened your understanding of the challenges faced by humanitarian actors around the world.
+      </p>
+      <p>
+        Feel free to continue using the filters, timeline, and tooltips to explore the data at your own pace.
+        You can always return to earlier chapters using the navigation buttons.
+      </p>
+      <p style="margin-top: 1em; font-style: italic;">
+      </p>
+    `,
+    action: () => {
+      useDualColors = false;
+  
+      // Reset filters to full range
+      const yearMin = document.getElementById("min-year");
+      const yearMax = document.getElementById("max-year");
+      yearMin.value = yearMin.options[0].value;
+      yearMax.value = yearMax.options[yearMax.options.length - 1].value;
+      reapplyRangeFilter();
+  
+      // Reset view and hide heatmap
+      resetViewToLatLon(10, 0); // general centered view
+      if (heatmapPoints) heatmapPoints.visible = false;
+      if (incidentPoints) incidentPoints.visible = true;
+  
+      // UI panels
+      introPanel.style.display = "block";
+      controlBox.style.display = "none";
+      setActive(btnInfo);
+      introPanel.innerHTML = `
+        <h3 style="margin-top:0; font-size:18px;">📘 Conclusion: Continue Exploring</h3>
+        ${chapters[chapters.length - 1].content}
+      `;
+
+      rotationSpeed = 0.001;
+  
+      // Remove any active legends
+      ["actor-legend", "org-legend", "gender-legend"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+      });
+  
+      // Reset tooltip view
+      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+      createInfoToggleButtons();
+      showAggregatedTooltip(currentHoverIndices);
+  
+      // Pause any playback and hide timeline
+      stopPlayback();
+      timelineContainer.style.display = "none";
+    }
+  },  
 ];
 
 function startPlayback() {
@@ -410,8 +735,9 @@ function startPlayback() {
     if (!isPlaying) return;
 
     currentYear++;
-    if (currentYear > 2024) {
-      currentYear = 2024;
+    const chapterMaxYear = currentChapter === 3 ? 2024 : 2024;
+    if (currentYear > chapterMaxYear) {
+      currentYear = chapterMaxYear;
       stopPlayback();
     }
     scrubSlider.value = currentYear;
@@ -455,7 +781,8 @@ function showChapter(n) {
       btn.style.cursor = btn.disabled ? "default" : "pointer";
     });
 
-    timelineContainer.style.display = (currentChapter === 1) ? "flex" : "none";
+    timelineContainer.style.display = 
+      (currentChapter === 1 || currentChapter === 3) ? "flex" : "none";
   }
 }
 
@@ -537,6 +864,41 @@ const globeMat = new THREE.MeshBasicMaterial({
 const globe = new THREE.Mesh(globeGeo, globeMat);
 globe.renderOrder = 2;
 globeGroup.add(globe);
+
+function addHeatmapOverlay(texture) {
+  const heatmapMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      heatmap: { value: texture },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform sampler2D heatmap;
+      void main() {
+        float intensity = texture2D(heatmap, vUv).r;
+        vec3 glow = vec3(1.0, 0.8, 0.3) * intensity;
+        gl_FragColor = vec4(glow, intensity * 0.9);
+      }
+    `
+  });
+
+  const geo = new THREE.IcosahedronGeometry(1.05, 16);
+  computeSphericalUV(geo);
+  const mesh = new THREE.Mesh(geo, heatmapMaterial);
+  mesh.renderOrder = 0; // ensure it's behind incident points
+  globeGroup.add(mesh);
+}
+
 
 /* --------------------------------------------------------
    6) Displacement Points on Globe (Shader)
@@ -639,6 +1001,8 @@ scene.add(getStarfield({ numStars: 4500, sprite: starSprite }));
    8) CSV-based Incident Markers
 -------------------------------------------------------- */
 let incidentPoints = null;
+let heatmapPoints = null;
+
 let incidentMeta = [];
 let incidentUVs = [];
 
@@ -780,6 +1144,39 @@ fetch("./datasets/filtered_security_df.csv")
    Interlude) Fetch Helper Functions
 -------------------------------------------------------- */
 
+  const actorColorMap = {
+    "non-state armed group: regional":   [1.0, 0.0, 0.0],  // red
+    "non-state armed group: national":   [1.0, 0.2, 0.2],
+    "non-state armed group: subnational":[1.0, 0.4, 0.4],
+    "non-state armed group: global":     [0.9, 0.1, 0.1],
+    "non-state armed group: unknown":    [0.8, 0.2, 0.2],
+    "staff member":                      [0.5, 0.5, 0.9],
+    "unaffiliated":                      [0.6, 0.6, 0.6],
+    "state: unknown":                    [0.0, 0.0, 1.0],
+    "police or paramilitary":            [0.0, 1.0, 1.0],
+    "host state":                        [0.0, 0.5, 1.0],
+    "aid recipient":                     [0.3, 0.9, 0.3],
+    "criminal":                          [1.0, 0.5, 0.0],
+    "foreign or coalition forces":       [0.5, 0.0, 1.0],
+    "unknown":                           [0.7, 0.7, 0.7],
+  };
+
+  const orgColorMap = {
+    "NNGO": [0.9, 0.4, 0.1],           // burnt orange
+    "NRCS and IFRC": [0.6, 0.1, 0.7],  // purple
+    "UN": [0.2, 0.6, 1.0],             // sky blue
+    "INGO": [0.2, 1.0, 0.6],           // sea green
+    "ICRC": [1.0, 0.2, 0.2],           // red
+    "Other": [0.7, 0.7, 0.7],          // gray
+  };
+  const localOrgs = ["NNGO", "NRCS and IFRC"];
+  
+  const genderColorMap = {
+    male: [0.2, 0.4, 1.0],     // blue-ish
+    female: [1.0, 0.3, 0.6],   // pink-ish
+    unknown: [0.7, 0.7, 0.7]   // gray
+  };
+
   function pulsePoints() {
     if (!incidentPoints || !incidentPoints.material || !incidentPoints.material.uniforms) return;
   
@@ -814,6 +1211,137 @@ fetch("./datasets/filtered_security_df.csv")
   
   function filterIncidentPointsInRange(minYear, maxYear) {
     const selectedOrgs = Array.from(document.querySelectorAll(".org-filter:checked")).map(cb => cb.value);
+  
+    // === 🔥 Chapter 4: High-Impact Heatmap View ===
+    if (currentChapter === 4) {
+      const cellSize = 1.0; // degrees per aggregation cell
+      const grid = {};
+      const newPositions = [];
+      const newUVs = [];
+      const newMeta = [];
+      const newColors = [];
+    
+      originalIncidentMeta.forEach((row, i) => {
+        const rowYear = parseInt(row.Year);
+        if (isNaN(rowYear) || rowYear < minYear || rowYear > maxYear) return;
+    
+        const orgMatch = selectedOrgs.some(org => parseFloat(row[org]) > 0);
+        if (!orgMatch) return;
+    
+        let totalAffected = parseFloat(row["Total affected"]);
+        if (isNaN(totalAffected)) totalAffected = 0;
+    
+        const lat = parseFloat(row.Latitude);
+        const lon = parseFloat(row.Longitude);
+        if (isNaN(lat) || isNaN(lon)) return;
+    
+        const latKey = Math.floor(lat / cellSize) * cellSize;
+        const lonKey = Math.floor(lon / cellSize) * cellSize;
+        const key = `${latKey}_${lonKey}`;
+    
+        if (!grid[key]) {
+          grid[key] = {
+            lat: latKey + cellSize / 2,
+            lon: lonKey + cellSize / 2,
+            totalAffected: 0,
+            count: 0
+          };
+        }
+    
+        grid[key].totalAffected += totalAffected;
+        grid[key].count += 1;
+      });
+    
+      const logCap = Math.log1p(100); // cap based on a typical high-impact value
+      Object.values(grid).forEach(cell => {
+        const rawValue = Math.max(1, cell.totalAffected); // avoid log(0)
+        const logValue = Math.log1p(rawValue);
+        const normalized = logValue / logCap;
+        const adjusted = Math.max(0.05, normalized); // ensures faint glow always
+    
+        const r = 1.0;
+        const g = Math.min(1.0, adjusted * 1.5);
+        const b = Math.min(1.0, adjusted * 0.4);
+        const color = [r, g, b];
+    
+        const pos = latLonToXYZ(cell.lat, cell.lon, 1.035);
+        const [u, v] = latLonToUV(cell.lat, cell.lon);
+    
+        newPositions.push(pos.x, pos.y, pos.z);
+        newUVs.push(u, v);
+        newColors.push(...color);
+        newMeta.push({ ...cell });
+      });
+    
+      // Create heatmapPoints mesh if it doesn't exist yet
+      if (!heatmapPoints) {
+        // Create it once
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(newPositions, 3));
+        geo.setAttribute("incidentUv", new THREE.Float32BufferAttribute(newUVs, 2));
+        geo.setAttribute("color", new THREE.Float32BufferAttribute(newColors, 3));
+    
+        const mat = new THREE.ShaderMaterial({
+          vertexShader: `
+            attribute vec3 color;
+            varying vec3 vColor;
+            varying float vVisible;
+    
+            uniform float pulseScale;
+    
+            void main() {
+              vec4 worldPos4 = modelMatrix * vec4(position, 1.0);
+              vec3 worldPos = worldPos4.xyz;
+              vec3 normal = normalize(worldPos);
+              vec3 cameraDir = normalize(cameraPosition - worldPos);
+              vVisible = step(0.0, dot(cameraDir, normal));
+              vColor = color;
+              gl_Position = projectionMatrix * viewMatrix * worldPos4;
+              gl_PointSize = 14.0 * pulseScale;
+            }
+          `,
+          fragmentShader: `
+            varying vec3 vColor;
+            varying float vVisible;
+            void main() {
+              if (vVisible < 0.5) discard;
+              gl_FragColor = vec4(vColor, 1.0);
+            }
+          `,
+          uniforms: {
+            pulseScale: { value: 1.0 }
+          },
+          transparent: true,
+          depthWrite: false
+        });
+    
+        heatmapPoints = new THREE.Points(geo, mat);
+        heatmapPoints.renderOrder = 1;
+        globeGroup.add(heatmapPoints);
+    
+      } else {
+        // Reuse existing mesh
+        const geo = heatmapPoints.geometry;
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(newPositions, 3));
+        geo.setAttribute("incidentUv", new THREE.Float32BufferAttribute(newUVs, 2));
+        geo.setAttribute("color", new THREE.Float32BufferAttribute(newColors, 3));
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.incidentUv.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+      }
+    
+      // Then set visible
+      if (incidentPoints) incidentPoints.visible = false;
+      if (heatmapPoints) heatmapPoints.visible = true;
+    
+      // Update globals
+      incidentMeta = newMeta;
+      incidentUVs = newUVs;
+    
+      return;
+    }
+  
+    // === 🌍 Chapters 0–3: Per-Incident Marker Logic ===
     const newPositions = [];
     const newUVs = [];
     const newMeta = [];
@@ -840,13 +1368,37 @@ fetch("./datasets/filtered_security_df.csv")
         originalIncidentUVs[uvIdx + 1]
       );
   
-      if (useDualColors) {
+      let color;
+  
+      if (currentChapter === 2) {
+        const actorRaw = row["Actor type"] || "Unknown";
+        const actor = actorRaw.trim().toLowerCase();
+        color = actorColorMap[actor] || [0.8, 0.8, 0.8];
+  
+      } else if (currentChapter === 3) {
+        const orgType = Object.keys(orgColorMap).find(org => parseFloat(row[org]) > 0) || "Other";
+        color = orgColorMap[orgType] || [0.6, 0.6, 0.6];
+  
+      } else if (currentChapter === 5) {
+        const male = parseFloat(row["Gender Male"]) || 0;
+        const female = parseFloat(row["Gender Female"]) || 0;
+        const unknown = parseFloat(row["Gender Unknown"]) || 0;
+      
+        let majority = "unknown";
+        if (male > female && male > unknown) majority = "male";
+        else if (female > male && female > unknown) majority = "female";
+      
+        color = genderColorMap[majority];
+
+      } else if (useDualColors) {
         const isPost2010 = rowYear >= 2010;
-        newColors.push(...(isPost2010 ? [1.0, 1.0, 0.2] : [1.0, 0.2, 0.2]));
+        color = isPost2010 ? [1.0, 1.0, 0.2] : [1.0, 0.2, 0.2];
+  
       } else {
-        newColors.push(1.0, 0.2, 0.2); // just red
+        color = [1.0, 0.2, 0.2];
       }
   
+      newColors.push(...color);
       newMeta.push(row);
     });
   
@@ -859,13 +1411,14 @@ fetch("./datasets/filtered_security_df.csv")
     incidentPoints.geometry = geo;
     incidentMeta = newMeta;
     incidentUVs = newUVs;
-  
-    // pulsePoints();
   }
+  
   
   // This is used by the timeline animation (single year)
   function filterIncidentPoints(year) {
-    filterIncidentPointsInRange(1997, year);  // or whatever your minimum year is
+    const minYear = (currentChapter === 3) ? 2014 : 1997;
+    filterIncidentPointsInRange(minYear, year);
+    filterIncidentPointsInRange(minYear, year);
   }
   
   
@@ -916,6 +1469,86 @@ Object.assign(infoToggleContainer.style, {
 });
 document.body.appendChild(infoToggleContainer);
 
+function renderActorLegend() {
+  const legend = document.createElement("div");
+  legend.id = "actor-legend";
+  legend.style.position = "absolute";
+  legend.style.bottom = "10px";
+  legend.style.left = "10px";
+  legend.style.background = "rgba(0,0,0,0.6)";
+  legend.style.padding = "8px";
+  legend.style.borderRadius = "6px";
+  legend.style.color = "#fff";
+  legend.style.fontSize = "14px";
+
+  Object.entries(actorColorMap).forEach(([actor, rgb]) => {
+    const colorBox = `<span style="display:inline-block; width:12px; height:12px; background: rgb(${rgb.map(x => x*255).join(",")}); margin-right:6px; border-radius:2px;"></span>`;
+    const line = `<div>${colorBox}${actor}</div>`;
+    legend.innerHTML += line;
+  });
+
+  document.body.appendChild(legend);
+}
+
+function showGenderLegend() {
+  const old = document.getElementById("gender-legend");
+  if (old) old.remove();
+
+  const legend = document.createElement("div");
+  legend.id = "gender-legend";
+  legend.style.position = "absolute";
+  legend.style.bottom = "10px";
+  legend.style.right = "10px";
+  legend.style.background = "rgba(0,0,0,0.6)";
+  legend.style.padding = "8px";
+  legend.style.borderRadius = "6px";
+  legend.style.color = "#fff";
+  legend.style.fontSize = "14px";
+
+  const genderColorMap = {
+    Female: [1.0, 0.3, 0.6],
+    Male: [0.2, 0.4, 1.0],
+    Unknown: [0.7, 0.7, 0.7]
+  };
+
+  Object.entries(genderColorMap).forEach(([label, rgb]) => {
+    const colorBox = `<span style="display:inline-block; width:12px; height:12px; background: rgb(${rgb.map(x => x*255).join(",")}); margin-right:6px; border-radius:2px;"></span>`;
+    legend.innerHTML += `<div>${colorBox}${label}</div>`;
+  });
+
+  document.body.appendChild(legend);
+}
+
+function showOrgLegend() {
+  const old = document.getElementById("org-legend");
+  if (old) old.remove();
+
+  const legend = document.createElement("div");
+  legend.id = "org-legend";
+  legend.style.position = "absolute";
+  legend.style.bottom = "10px";
+  legend.style.right = "10px";
+  legend.style.background = "rgba(0,0,0,0.6)";
+  legend.style.padding = "8px";
+  legend.style.borderRadius = "6px";
+  legend.style.color = "#fff";
+  legend.style.fontSize = "14px";
+
+  Object.entries(orgColorMap).forEach(([org, rgb]) => {
+    const colorBox = `<span style="display:inline-block; width:12px; height:12px; background: rgb(${rgb.map(x => x*255).join(",")}); margin-right:6px; border-radius:2px;"></span>`;
+    legend.innerHTML += `<div>${colorBox}${org}</div>`;
+  });
+
+  document.body.appendChild(legend);
+}
+
+
+document.querySelectorAll("#info-toggle-container button").forEach(btn => {
+  if (btn.textContent.includes("🎯")) {
+    btn.style.backgroundColor = "#ff8800";
+    btn.style.borderColor = "#ffaa33";
+  }
+});
 
 // Keep track of which sections are active
 const infoSections = {
@@ -923,7 +1556,8 @@ const infoSections = {
   context: true,
   actor: true,
   impact: true,
-  gender: true
+  gender: true,
+  actorTargetMap: false
 };
 
 // Shared style for info box buttons (copied from btnInfo style)
@@ -950,7 +1584,8 @@ function createInfoToggleButtons() {
     context: "📍 Contexts",
     actor: "🎯 Actors",
     impact: "💥 Impact",
-    gender: "👥 Gender"
+    gender: "👥 Gender",
+    actorTargetMap: "🧨 Targets by Actor"
   };
 
   Object.entries(buttons).forEach(([key, label]) => {
@@ -980,18 +1615,32 @@ function setInfoButtonActive(button, isActive) {
 let currentHoverIndices = [];
 
 function showAggregatedTooltip(indices) {
-  currentHoverIndices = indices; // persist for toggles
+  
+  currentHoverIndices = indices;
+  const actorOrgMap = {};
 
-  // Whether we have data or not
   const hasData = indices.length > 0;
-
-  // Either aggregate real incidents or use zeroed placeholder
   const incidents = hasData
     ? indices.map(i => incidentMeta[i]).filter(Boolean)
     : [];
 
   const total = incidents.length;
+  
+  incidents.forEach(row => {
+    const actor = row["Actor type"] || "Unknown";
+    const orgs = [];
 
+    ["UN", "INGO", "ICRC", "NRCS and IFRC", "NNGO", "Other"].forEach(org => {
+      if (parseFloat(row[org]) > 0) orgs.push(org);
+    });
+
+    if (!actorOrgMap[actor]) actorOrgMap[actor] = {};
+    orgs.forEach(o => {
+      actorOrgMap[actor][o] = (actorOrgMap[actor][o] || 0) + 1;
+    });
+  });
+
+  // Now it's safe to use
   const countryCounts = {};
   const attackContexts = {};
   const actorTypes = {};
@@ -999,17 +1648,18 @@ function showAggregatedTooltip(indices) {
   let sumTotalKilled = 0,
       sumTotalWounded = 0,
       sumTotalKidnapped = 0,
-      sumTotalAffected = 0;
-
-  let sumGenderMale = 0,
+      sumTotalAffected = 0,
+      sumGenderMale = 0,
       sumGenderFemale = 0,
       sumGenderUnknown = 0;
 
+  // Aggregate stats
   if (hasData) {
     incidents.forEach(row => {
       const country = row.Country || "Unknown";
       const context = row["Attack context"] || "Unknown";
-      const actor = row["Actor type"] || "Unknown";
+      const actorRaw = row["Actor type"] || "Unknown";
+      const actor = actorRaw.trim().toLowerCase();
 
       countryCounts[country] = (countryCounts[country] || 0) + 1;
       attackContexts[context] = (attackContexts[context] || 0) + 1;
@@ -1024,25 +1674,17 @@ function showAggregatedTooltip(indices) {
       sumGenderFemale    += parseFloat(row["Gender Female"])    || 0;
       sumGenderUnknown   += parseFloat(row["Gender Unknown"])   || 0;
     });
-  } else {
-    // show a placeholder category with zero count
-    countryCounts["—"] = 0;
-    attackContexts["—"] = 0;
-    actorTypes["—"] = 0;
   }
 
-  const topN = 5;
   const formatTop = (obj) => {
     return Object.entries(obj)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, topN)
-      .map(([key, count]) => `<li>${key}: ${count}</li>`)
+      .slice(0, 5)
+      .map(([k, v]) => `<li>${k}: ${v}</li>`)
       .join("");
   };
 
   let content = `<h4>${hasData ? `${total} Incident${total > 1 ? "s" : ""} Nearby` : `No Nearby Incidents`}</h4>`;
-
-  infoBox.innerHTML = "";
 
   if (infoSections.country) {
     content += `<strong>Top Countries:</strong><ul>${formatTop(countryCounts)}</ul>`;
@@ -1054,30 +1696,61 @@ function showAggregatedTooltip(indices) {
     content += `<strong>Actor Types:</strong><ul>${formatTop(actorTypes)}</ul>`;
   }
   if (infoSections.impact) {
-    content += `
-      <strong>People Impacted:</strong>
-      <ul>
-        <li>Total Killed: ${sumTotalKilled}</li>
-        <li>Total Wounded: ${sumTotalWounded}</li>
-        <li>Total Kidnapped: ${sumTotalKidnapped}</li>
-        <li>Total Affected: ${sumTotalAffected}</li>
-      </ul>`;
+    content += `<strong>People Impacted:</strong><ul>
+      <li>Total Killed: ${sumTotalKilled}</li>
+      <li>Total Wounded: ${sumTotalWounded}</li>
+      <li>Total Kidnapped: ${sumTotalKidnapped}</li>
+      <li>Total Affected: ${sumTotalAffected}</li></ul>`;
   }
   if (infoSections.gender) {
-    content += `
-      <strong>Gender Breakdown:</strong>
-      <ul>
-        <li>Male: ${sumGenderMale}</li>
-        <li>Female: ${sumGenderFemale}</li>
-        <li>Unknown: ${sumGenderUnknown}</li>
-      </ul>`;
+    content += `<strong>Gender Breakdown:</strong><ul>
+      <li>Male: ${sumGenderMale}</li>
+      <li>Female: ${sumGenderFemale}</li>
+      <li>Unknown: ${sumGenderUnknown}</li></ul>`;
   }
 
+  if (infoSections.actorTargetMap) {
+    content += `<strong>Actor Type Counts:</strong><ul>`;
+    
+    const allKnownActors = Object.keys(actorColorMap);
+    allKnownActors.forEach(actor => {
+      const count = actorTypes[actor] || 0;
+      const niceLabel = actor
+      .split(" ")
+      .map(word => word.length > 2 ? word[0].toUpperCase() + word.slice(1) : word.toUpperCase())
+      .join(" ");
+    
+      content += `<li>${niceLabel}: ${count}</li>`;
+    });
+  
+    content += `</ul>`;
+  }
+
+  if (infoSections.organization) {
+    const orgCounts = {};
+    incidents.forEach(row => {
+      Object.keys(orgColorMap).forEach(org => {
+        if (parseFloat(row[org]) > 0) {
+          orgCounts[org] = (orgCounts[org] || 0) + 1;
+        }
+      });
+    });
+  
+    content += `<strong>Organizations Impacted:</strong><ul>`;
+    Object.keys(orgColorMap).forEach(org => {
+      const count = orgCounts[org] || 0;
+      content += `<li>${org}: ${count}</li>`;
+    });
+    content += `</ul>`;
+  }
+
+  infoBox.innerHTML = "";
   const bodyDiv = document.createElement("div");
   bodyDiv.innerHTML = content;
   infoBox.appendChild(bodyDiv);
   infoBox.style.display = "block";
 }
+
 
 createInfoToggleButtons();
 
