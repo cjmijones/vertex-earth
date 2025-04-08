@@ -295,14 +295,6 @@ Object.assign(timelineContainer.style, {
   paddingTop: "6px",
 });
 
-const playBtn = document.createElement("button");
-playBtn.textContent = "▶️ Play";
-Object.assign(playBtn.style, buttonBaseStyle);
-
-const pauseBtn = document.createElement("button");
-pauseBtn.textContent = "⏸️ Pause";
-Object.assign(pauseBtn.style, buttonBaseStyle);
-
 const scrubSlider = document.createElement("input");
 Object.assign(scrubSlider, {
   type: "range",
@@ -315,10 +307,36 @@ Object.assign(scrubSlider.style, {
   height: "24px",
 });
 
+const yearLabel = document.createElement("span");
+Object.assign(yearLabel.style, {
+  color: "#fff",
+  fontWeight: "bold",
+  minWidth: "48px",
+});
+yearLabel.textContent = scrubSlider.value;
+
+scrubSlider.oninput = () => {
+  currentYear = parseInt(scrubSlider.value);
+  yearLabel.textContent = currentYear;
+  filterIncidentPoints(currentYear);
+};
+
+
+const playBtn = document.createElement("button");
+playBtn.textContent = "▶️ Play";
+Object.assign(playBtn.style, buttonBaseStyle);
+
+const pauseBtn = document.createElement("button");
+pauseBtn.textContent = "⏸️ Pause";
+Object.assign(pauseBtn.style, buttonBaseStyle);
+
+
 timelineContainer.appendChild(playBtn);
 timelineContainer.appendChild(pauseBtn);
-timelineContainer.appendChild(scrubSlider);
+timelineContainer.appendChild(yearLabel);
+
 uiContainer.appendChild(timelineContainer);
+timelineContainer.appendChild(scrubSlider);
 
 
 
@@ -356,6 +374,13 @@ const chapters = [
       useDualColors = false;
       if (heatmapPoints) heatmapPoints.visible = false;
       if (incidentPoints) incidentPoints.visible = true;
+      rotationSpeed = 0.001;
+
+      Object.keys(infoSections).forEach(k => {
+        infoSections[k] = ["country", "context", "actor", "impact", "gender"].includes(k);
+      });
+
+      createInfoToggleButtons();
       introPanel.style.display = "block";
       controlBox.style.display = "none";
       setActive(btnInfo);
@@ -392,7 +417,12 @@ const chapters = [
 
       // Reset view to Middle East
       resetViewToLatLon(15, 20); // lat/lon of Middle East
+
+      Object.keys(infoSections).forEach(k => {
+        infoSections[k] = ["country", "context", "actor", "impact", "gender"].includes(k);
+      });
   
+      createInfoToggleButtons();
       // UI
       introPanel.style.display = "block";
       controlBox.style.display = "none";
@@ -655,8 +685,9 @@ const chapters = [
         ${chapters[5].content}
       `;
   
-      Object.keys(infoSections).forEach(k => infoSections[k] = false);
-      infoSections.gender = true;
+      Object.keys(infoSections).forEach(k => {
+        infoSections[k] = ["impact", "gender"].includes(k);
+      });
       createInfoToggleButtons();
   
       stopPlayback();
@@ -718,7 +749,9 @@ const chapters = [
       });
   
       // Reset tooltip view
-      Object.keys(infoSections).forEach(k => infoSections[k] = false);
+      Object.keys(infoSections).forEach(k => {
+        infoSections[k] = ["country", "context", "actor", "impact", "gender"].includes(k);
+      });
       createInfoToggleButtons();
       showAggregatedTooltip(currentHoverIndices);
   
@@ -1932,3 +1965,23 @@ scrollbarStyle.innerHTML = `
   }
 `;
 document.head.appendChild(scrollbarStyle);
+
+const filterStyles = document.createElement("style");
+filterStyles.textContent = `
+  #control-panel select,
+  #control-panel button {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
+  #control-panel button:hover {
+    background-color: #f0f0f0;
+  }
+`;
+document.head.appendChild(filterStyles);
+
